@@ -1,0 +1,27 @@
+
+DECLARE
+  extracted_typeform_id UUID;
+BEGIN
+  -- Try to extract supabase_typeform_id from the response JSON
+  IF NEW.response IS NOT NULL THEN
+    -- Extract supabase_typeform_id from hidden fields in the response
+    extracted_typeform_id := (NEW.response->>'supabase_typeform_id')::UUID;
+    
+    -- If we found a supabase_typeform_id, update the record and create progress entry
+    IF extracted_typeform_id IS NOT NULL THEN
+      -- Update the typeform_id column
+      UPDATE "typeform-responses" 
+      SET typeform_id = extracted_typeform_id 
+      WHERE id = NEW.id;
+      
+      -- Create user_progress entry (avoid duplicates)
+      INSERT INTO user_progress (user_id, typeform_id, completed_at)
+      VALUES (NEW.user_id, extracted_typeform_id, NEW.created_at)
+      ON CONFLICT (user_id, typeform_id) DO NOTHING;
+      
+      -- The rest of the progress tracking will be handled by existing triggers
+    END IF;
+  END IF;
+  
+  RETURN NEW;
+END;

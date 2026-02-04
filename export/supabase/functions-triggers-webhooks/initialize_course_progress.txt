@@ -1,0 +1,16 @@
+
+BEGIN
+  -- Create course progress record (no calculated fields)
+  INSERT INTO course_progress (user_id, course_id)
+  VALUES (NEW.user_id, NEW.course_id)
+  ON CONFLICT (user_id, course_id) DO NOTHING;
+  
+  -- Create subject progress records (no calculated fields)
+  INSERT INTO subject_progress (user_id, subject_id)
+  SELECT NEW.user_id, s.id
+  FROM subjects s
+  WHERE s.course_id = NEW.course_id
+  ON CONFLICT (user_id, subject_id) DO NOTHING;
+  
+  RETURN NEW;
+END;

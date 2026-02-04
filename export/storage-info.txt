@@ -1,0 +1,6 @@
+=== Storage Buckets ===
+Initialising login role...
+character-profiles/
+activity_images/
+haikei-waves-blue/
+onboarding-vids/

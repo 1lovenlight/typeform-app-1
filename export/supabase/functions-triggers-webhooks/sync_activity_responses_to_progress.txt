@@ -1,0 +1,17 @@
+
+BEGIN
+    -- Insert into user_progress for completed activities
+    INSERT INTO public.user_progress (user_id, activity_id, completed_at)
+    SELECT DISTINCT 
+        ar.user_id,
+        ar.activity_id,
+        ar.created_at
+    FROM public.activity_responses ar
+    WHERE ar.user_id IS NOT NULL 
+    AND ar.activity_id IS NOT NULL
+    AND NOT EXISTS (
+        SELECT 1 FROM public.user_progress up 
+        WHERE up.user_id = ar.user_id 
+        AND up.activity_id = ar.activity_id
+    );
+END;

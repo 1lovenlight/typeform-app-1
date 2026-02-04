@@ -1,0 +1,53 @@
+
+DECLARE
+  subject_record RECORD;
+  total_activities INTEGER;
+BEGIN
+  -- Get the activity details
+  SELECT t.subject_id, t.order_index, s.course_id, s.order_index as subject_order_index
+  INTO subject_record
+  FROM typeforms t
+  JOIN subjects s ON s.id = t.subject_id
+  WHERE t.id = NEW.typeform_id;
+  
+  -- Get total activities in subject for status calculation
+  SELECT COUNT(*) INTO total_activities
+  FROM typeforms 
+  WHERE subject_id = subject_record.subject_id;
+  
+  -- Update subject progress (only essential fields)
+  UPDATE subject_progress 
+  SET 
+    completed_count = completed_count + 1,
+    current_activity_index = GREATEST(current_activity_index, COALESCE(subject_record.order_index, 0)),
+    last_activity_at = NEW.completed_at,
+    status = CASE 
+      WHEN (completed_count + 1) >= total_activities THEN 'completed'
+      ELSE 'in_progress'
+    END
+  WHERE user_id = NEW.user_id AND subject_id = subject_record.subject_id;
+  
+  -- Update course progress (only essential fields)
+  UPDATE course_progress 
+  SET 
+    current_subject_index = GREATEST(current_subject_index, COALESCE(subject_record.subject_order_index, 0)),
+    last_activity_at = NEW.completed_at,
+    status = CASE 
+      WHEN (
+        SELECT COUNT(*)
+        FROM subject_progress sp
+        JOIN subjects s ON s.id = sp.subject_id
+        WHERE sp.user_id = NEW.user_id 
+          AND s.course_id = subject_record.course_id 
+          AND sp.status = 'completed'
+      ) >= (
+        SELECT COUNT(*)
+        FROM subjects s
+        WHERE s.course_id = subject_record.course_id
+      ) THEN 'completed'
+      ELSE 'in_progress'
+    END
+  WHERE user_id = NEW.user_id AND course_id = subject_record.course_id;
+  
+  RETURN NEW;
+END;
